@@ -9,7 +9,7 @@ class Institution(object):
     founded = None
 
     def __init__(self, name=None, website=None, industry=None, type=None, headquarters=None, company_size=None, founded=None):
-        self.name = name
+        self.institution_name = name
         self.website = website
         self.industry = industry
         self.type = type

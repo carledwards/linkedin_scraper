@@ -17,7 +17,7 @@ class Person(Scraper):
     also_viewed_urls = []
     linkedin_url = None
 
-    def __init__(self, linkedin_url=None, name=None, experiences=[], educations=[], driver=None, get=True, scrape=True):
+    def __init__(self, linkedin_url=None, name=None, experiences=[], educations=[], driver=None, get=True, scrape=True, close_on_complete=True):
         self.linkedin_url = linkedin_url
         self.name = name
         self.experiences = experiences or []
@@ -40,7 +40,7 @@ class Person(Scraper):
         self.driver = driver
 
         if scrape:
-            self.scrape()
+            self.scrape(close_on_complete=close_on_complete)
 
 
     def add_experience(self, experience):
@@ -58,6 +58,24 @@ class Person(Scraper):
         else:
             self.scrape_not_logged_in(close_on_complete = close_on_complete)
 
+    def get_position_details(self, root):
+        from_date, to_date, duration = ("Unknown", "Unknown", "Unknown")
+        location = None
+        position_title = root.find_element_by_tag_name("h3").text.strip()
+
+        try:
+            times = root.find_element_by_class_name("pv-entity__date-range").text.strip()
+            times = "\n".join(times.split("\n")[1:])
+            from_date, to_date, duration = time_divide(times)
+        except:
+            pass
+        try:
+            # remove the prefix word "Location\n" from the text
+            location = root.find_element_by_class_name("pv-entity__location").text.strip().split('\n')[1]
+        except:
+            pass
+        return (position_title, from_date, to_date, duration, location)
+
     def scrape_logged_in(self, close_on_complete=True):
         driver = self.driver
         root = driver.find_element_by_class_name(self.__TOP_CARD)
@@ -70,22 +88,44 @@ class Person(Scraper):
         # get experience
         exp = driver.find_element_by_id("experience-section")
         for position in exp.find_elements_by_class_name("pv-position-entity"):
-            position_title = position.find_element_by_tag_name("h3").text.strip()
-            company = position.find_element_by_class_name("pv-entity__secondary-title").text.strip()
+            roles = position.find_elements_by_class_name("pv-entity__role-details")
+            if len(roles) > 0:
+                # person had more than one role at the company
+                try:
+                    # remove the "Company Name\n" prefix
+                    company = position.find_element_by_tag_name("h3").text.strip().split('\n')[1]
+                except:
+                    company = None
 
-            try:
-                times = position.find_element_by_class_name("pv-entity__date-range").text.strip()
-                times = "\n".join(times.split("\n")[1:])
-                from_date, to_date, duration = time_divide(times)
-            except:
-                from_date, to_date, duration = ("Unknown", "Unknown", "Unknown")
-            try:
-                location = position.find_element_by_class_name("pv-entity__location").text.strip()
-            except:
-                location = None
-            experience = Experience( position_title = position_title , from_date = from_date , to_date = to_date, duration = duration, location = location)
-            experience.institution_name = company
-            self.add_experience(experience)
+                try:
+                    company_website = position.find_element_by_tag_name("a").get_attribute('href')
+                except:
+                    company_website = None
+
+                # person had multiple roles in the same company
+                for role in roles:
+                    position_title, from_date, to_date, duration, location = self.get_position_details(role)
+                    experience = Experience( position_title = position_title , from_date = from_date , to_date = to_date, duration = duration, location = location)
+                    experience.institution_name = company
+                    experience.website = company_website
+                    self.add_experience(experience)
+            else:
+                # person had one role
+                try:
+                    company = position.find_element_by_class_name("pv-entity__secondary-title").text.strip()
+                except:
+                    company = None
+
+                try:
+                    company_website = position.find_element_by_tag_name("a").get_attribute('href')
+                except:
+                    company_website = None
+
+                position_title, from_date, to_date, duration, location = self.get_position_details(position)
+                experience = Experience( position_title = position_title , from_date = from_date , to_date = to_date, duration = duration, location = location)
+                experience.institution_name = company
+                experience.website = company_website
+                self.add_experience(experience)
         
         # get location
         location = driver.find_element_by_class_name(f'{self.__TOP_CARD}--list-bullet')

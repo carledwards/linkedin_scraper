@@ -37,6 +37,7 @@ class Company(Scraper):
     specialties = None
     showcase_pages =[]
     affiliated_companies = []
+    employees = []
 
     def __init__(self, linkedin_url = None, name = None, about_us =None, website = None, headquarters = None, founded = None, company_type = None, company_size = None, specialties = None, showcase_pages =[], affiliated_companies = [], driver = None, scrape = True, get_employees = True, close_on_complete = True):
         self.linkedin_url = linkedin_url
@@ -102,16 +103,16 @@ class Company(Scraper):
 
         _ = WebDriverWait(driver, wait_time).until(EC.presence_of_element_located((By.CLASS_NAME, list_css)))
 
-        total = []
+        self.employees = []
         driver.execute_script("window.scrollTo(0, Math.ceil(document.body.scrollHeight/2));")
         time.sleep(1)
         driver.execute_script("window.scrollTo(0, Math.ceil(document.body.scrollHeight*3/4));")
         results_list = driver.find_element_by_class_name(list_css)
         results_li = results_list.find_elements_by_tag_name("li")
         for res in results_li:
-            total.append(self.__parse_employee__(res))
+            self.employees.append(self.__parse_employee__(res))
 
-        while self.__find_element_by_xpath__(next_xpath):
+        while self.__find_element_by_xpath__(next_xpath) and driver.find_element_by_xpath(next_xpath).is_enabled():
             driver.find_element_by_xpath(next_xpath).click()
             _ = WebDriverWait(driver, wait_time).until(EC.presence_of_element_located((By.CLASS_NAME, list_css)))
 
@@ -129,7 +130,7 @@ class Company(Scraper):
             results_li = results_list.find_elements_by_tag_name("li")
             for res in results_li:
                 _ = WebDriverWait(driver, wait_time).until(EC.visibility_of(res))
-                total.append(self.__parse_employee__(res))
+                self.employees.append(self.__parse_employee__(res))
 
 
 
