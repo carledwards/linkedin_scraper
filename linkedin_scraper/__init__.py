@@ -2,6 +2,7 @@ from os.path import dirname, basename, isfile
 from .person import Person
 from .objects import Institution, Experience, Education
 from .company import Company
+from .people_search import PeopleSearch
 
 __version__ = "2.4.3"
 
